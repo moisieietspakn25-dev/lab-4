@@ -1,0 +1,349 @@
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+
+class Program
+{
+    const int N = 7;
+    const int K = 19;
+    const int a = N % 3;
+    const int b = N % 4;
+    const int c = N % 5;
+
+    static void Main()
+    {
+        Console.WriteLine($"N = {N}, K = {K}, a = {a}, b = {b}, c = {c}");
+
+        List<int> original = CreateMainList(N);
+        Console.WriteLine("Основний список: " + Show(original));
+
+        // Завдання 1. Побудова списку за критерієм
+        List<int> filtered = BuildByCriterion(original);
+        Console.WriteLine($"Завдання 1: {Show(filtered)}; Count = {filtered.Count}");
+
+        // Завдання 2. Вилучення трьома способами
+        int initialFirst = original.Count > 0 ? original[0] : 0;
+        double initialAverage = Average(original);
+
+        List<int> wrong = new List<int>(original);
+        List<int> skipped = RemoveForwardWrong(wrong, initialFirst, initialAverage);
+        Console.WriteLine("Завдання 2 — хибний цикл: " + Show(wrong));
+        Console.WriteLine("Пропущені елементи: " + Show(skipped));
+
+        List<int> backwards = new List<int>(original);
+        RemoveFromEnd(backwards, initialFirst, initialAverage);
+        Console.WriteLine("Завдання 2 — цикл з кінця: " + Show(backwards));
+
+        List<int> rebuilt = BuildWithoutMatches(original, initialFirst, initialAverage);
+        Console.WriteLine("Завдання 2 — новий список: " + Show(rebuilt));
+        Console.WriteLine("Правильні результати однакові: " +
+                          ListsEqual(backwards, rebuilt));
+
+        // Завдання 3. Злиття впорядкованих списків
+        List<int> first = CreateIncreasingList(10 + K % 5, N);
+        List<int> second = CreateIncreasingList(6 + K % 4, N + 100);
+        List<int> merged = MergeSorted(first, second);
+
+        Console.WriteLine("Список 1: " + Show(first));
+        Console.WriteLine("Список 2: " + Show(second));
+        Console.WriteLine("Завдання 3 — злиття: " + Show(merged));
+        Console.WriteLine("Список упорядкований: " + IsSorted(merged));
+
+        // Завдання 4. Розділення списку
+        SplitList(original, out List<int> part1, out List<int> part2);
+        Console.WriteLine("Завдання 4 — парні індекси: " + Show(part1));
+        Console.WriteLine("Завдання 4 — непарні індекси: " + Show(part2));
+        Console.WriteLine("Сума Count правильна: " +
+                          (part1.Count + part2.Count == original.Count));
+
+        // Завдання 5. Вимірювання часу
+        RunBenchmarks();
+
+        // Перевірка крайових випадків
+        RunEdgeCases();
+    }
+
+    static List<int> CreateMainList(int seed)
+    {
+        Random rnd = new Random(seed);
+        List<int> list = new List<int>(20);
+
+        for (int i = 0; i < 20; i++)
+            list.Add(rnd.Next(-9, 10));
+
+        return list;
+    }
+
+    static List<int> BuildByCriterion(List<int> source)
+    {
+        List<int> result = new List<int>(source.Count);
+        int divisor = K % 4 + 2;
+
+        for (int i = 0; i < source.Count; i++)
+        {
+            int x = source[i];
+
+            if (a == 0 && x > K % 7)
+                result.Add(x);
+            else if (a == 1 && x % divisor == 0)
+                result.Add(x);
+            else if (a == 2 && x > 0 && x % 2 != 0)
+                result.Add(x);
+        }
+
+        return result;
+    }
+
+    static bool ShouldRemove(int x, int initialFirst, double initialAverage)
+    {
+        if (c == 0) return x % 5 == 0;
+        if (c == 1) return x % 3 == 0;
+        if (c == 2) return x < 0;
+        if (c == 3) return x == initialFirst;
+
+        return x < initialAverage;
+    }
+
+    // Навмисно хибний спосіб: цикл пропускає наступний елемент
+    // після видалення, якщо той теж відповідає умові.
+    static List<int> RemoveForwardWrong(
+        List<int> list, int initialFirst, double initialAverage)
+    {
+        List<int> skipped = new List<int>();
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (ShouldRemove(list[i], initialFirst, initialAverage))
+            {
+                list.RemoveAt(i);
+
+                if (i < list.Count &&
+                    ShouldRemove(list[i], initialFirst, initialAverage))
+                {
+                    skipped.Add(list[i]);
+                }
+            }
+        }
+
+        return skipped;
+    }
+
+    static void RemoveFromEnd(
+        List<int> list, int initialFirst, double initialAverage)
+    {
+        for (int i = list.Count - 1; i >= 0; i--)
+        {
+            if (ShouldRemove(list[i], initialFirst, initialAverage))
+                list.RemoveAt(i);
+        }
+    }
+
+    static List<int> BuildWithoutMatches(
+        List<int> source, int initialFirst, double initialAverage)
+    {
+        List<int> result = new List<int>(source.Count);
+
+        for (int i = 0; i < source.Count; i++)
+        {
+            if (!ShouldRemove(source[i], initialFirst, initialAverage))
+                result.Add(source[i]);
+        }
+
+        return result;
+    }
+
+    static double Average(List<int> list)
+    {
+        if (list.Count == 0)
+            return 0;
+
+        long sum = 0;
+
+        for (int i = 0; i < list.Count; i++)
+            sum += list[i];
+
+        return (double)sum / list.Count;
+    }
+
+    static List<int> CreateIncreasingList(int count, int seed)
+    {
+        Random rnd = new Random(seed);
+        List<int> list = new List<int>(count);
+
+        if (count == 0)
+            return list;
+
+        int x = rnd.Next(1, 10);
+        list.Add(x);
+
+        for (int i = 1; i < count; i++)
+        {
+            x += rnd.Next(1, 10);
+            list.Add(x);
+        }
+
+        return list;
+    }
+
+    static List<int> MergeSorted(List<int> first, List<int> second)
+    {
+        List<int> result = new List<int>(first.Count + second.Count);
+        int i = 0;
+        int j = 0;
+
+        while (i < first.Count && j < second.Count)
+        {
+            if (first[i] <= second[j])
+                result.Add(first[i++]);
+            else
+                result.Add(second[j++]);
+        }
+
+        while (i < first.Count)
+            result.Add(first[i++]);
+
+        while (j < second.Count)
+            result.Add(second[j++]);
+
+        return result;
+    }
+
+    static bool IsSorted(List<int> list)
+    {
+        for (int i = 1; i < list.Count; i++)
+        {
+            if (list[i] < list[i - 1])
+                return false;
+        }
+
+        return true;
+    }
+
+    static void SplitList(
+        List<int> source, out List<int> first, out List<int> second)
+    {
+        first = new List<int>(source.Count);
+        second = new List<int>(source.Count);
+
+        for (int i = 0; i < source.Count; i++)
+        {
+            if (i % 2 == 0)
+                first.Add(source[i]);
+            else
+                second.Add(source[i]);
+        }
+    }
+
+    static bool ListsEqual(List<int> first, List<int> second)
+    {
+        if (first.Count != second.Count)
+            return false;
+
+        for (int i = 0; i < first.Count; i++)
+        {
+            if (first[i] != second[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    static string Show(List<int> list)
+    {
+        return "[" + string.Join(", ", list) + "]";
+    }
+
+    static void RunBenchmarks()
+    {
+        const int count = 100000;
+
+        // Прогрівання перед замірами
+        Warmup();
+
+        Stopwatch sw = new Stopwatch();
+
+        sw.Start();
+        List<int> list1 = new List<int>();
+        for (int i = 0; i < count; i++)
+            list1.Add(i);
+        sw.Stop();
+        double addWithoutCapacity = sw.Elapsed.TotalMilliseconds;
+
+        sw.Restart();
+        List<int> list2 = new List<int>(count);
+        for (int i = 0; i < count; i++)
+            list2.Add(i);
+        sw.Stop();
+        double addWithCapacity = sw.Elapsed.TotalMilliseconds;
+
+        sw.Restart();
+        List<int> list3 = new List<int>();
+        for (int i = 0; i < count; i++)
+            list3.Insert(0, i);
+        sw.Stop();
+        double insertBeginning = sw.Elapsed.TotalMilliseconds;
+
+        List<int> list4 = new List<int>(count);
+        for (int i = 0; i < count; i++)
+            list4.Add(i);
+
+        sw.Restart();
+        for (int i = 0; i < 1000; i++)
+            list4.Contains(-1);
+        sw.Stop();
+        double containsTime = sw.Elapsed.TotalMilliseconds;
+
+        Console.WriteLine("\nЗавдання 5 — час виконання (мс):");
+        Console.WriteLine($"Add без місткості: {addWithoutCapacity:F3}");
+        Console.WriteLine($"Add з місткістю: {addWithCapacity:F3}");
+        Console.WriteLine($"Insert(0, x): {insertBeginning:F3}");
+        Console.WriteLine($"Contains відсутнього елемента: {containsTime:F3}");
+
+        if (addWithoutCapacity > 0)
+            Console.WriteLine($"Insert / Add: {insertBeginning / addWithoutCapacity:F2} разів");
+    }
+
+    static void Warmup()
+    {
+        List<int> a = new List<int>();
+        List<int> b = new List<int>(1000);
+        List<int> c = new List<int>();
+
+        for (int i = 0; i < 1000; i++)
+        {
+            a.Add(i);
+            b.Add(i);
+            c.Insert(0, i);
+        }
+
+        for (int i = 0; i < 1000; i++)
+            b.Contains(-1);
+    }
+
+    static void RunEdgeCases()
+    {
+        Console.WriteLine("\nПеревірка крайових випадків:");
+
+        List<int> empty = new List<int>();
+        List<int> one = new List<int> { 4 };
+
+        Console.WriteLine("Порожній список — фільтр: " +
+                          (BuildByCriterion(empty).Count == 0));
+        Console.WriteLine("Порожній список — злиття: " +
+                          IsSorted(MergeSorted(empty, empty)));
+
+        SplitList(empty, out List<int> e1, out List<int> e2);
+        Console.WriteLine("Порожній список — розділення: " +
+                          (e1.Count + e2.Count == 0));
+
+        SplitList(one, out List<int> o1, out List<int> o2);
+        Console.WriteLine("Один елемент — розділення: " +
+                          (o1.Count + o2.Count == one.Count));
+
+        List<int> noMatches = new List<int> { 1, 3, 7 };
+        List<int> filtered = BuildByCriterion(noMatches);
+        Console.WriteLine("Перевірка фільтра для списку без кратних 5: " +
+                          (filtered.Count == 0));
+    }
+}
